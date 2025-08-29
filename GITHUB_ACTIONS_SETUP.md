@@ -29,9 +29,11 @@ Add these secrets one by one:
 ```
 Name: AI_PROVIDER
 Value: openai
+(Note: This is optional - defaults to "openai" if not set)
 
 Name: OPENAI_API_KEY  
-Value: [Your OpenAI API key]
+Value: [Your OpenAI API key - REQUIRED]
+Example: sk-abc123...
 
 Name: GEMINI_API_KEY
 Value: [Your Gemini API key - optional]

@@ -32,8 +32,8 @@ jobs:
       
     - name: Test story generation
       env:
-        # AI Provider
-        AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+        # AI Provider (defaults to openai if not set)
+        AI_PROVIDER: ${{ secrets.AI_PROVIDER || 'openai' }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         
@@ -49,6 +49,12 @@ jobs:
         # Set posting mode based on input
         AUTO_POST: ${{ inputs.dry_run == 'false' }}
       run: |
+        echo "🔧 Configuration Check:"
+        echo "AI_PROVIDER: $AI_PROVIDER"
+        echo "OPENAI_API_KEY: $(if [ -n "$OPENAI_API_KEY" ]; then echo "Set (${#OPENAI_API_KEY} chars)"; else echo "NOT SET"; fi)"
+        echo "AUTO_POST: $AUTO_POST"
+        echo ""
+        
         if [ "${{ inputs.dry_run }}" = "true" ]; then
           echo "🧪 Running in DRY RUN mode - no actual posting"
           export AUTO_POST=false
