@@ -32,17 +32,18 @@ class Config:
     twitter_access_token_secret: Optional[str] = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
     
     # Content Generation Settings
-    account_theme: str = "ignorant strength"
+    account_theme: str = "random stories"
     account_description: str = """
-    The concept of 'ignorant strength' - finding power in not knowing everything,
-    embracing uncertainty, learning from failures, and drawing strength from humility.
-    The wisdom that comes from admitting what you don't know and growing from it.
+    A creative storytelling bot that generates short, engaging stories on random topics.
+    Stories can range from everyday encounters to fantastical adventures, slice-of-life
+    moments to thought-provoking scenarios. Each story is designed to entertain,
+    inspire, or spark imagination in a brief social media format.
     """
     
-    # Quote Generation Settings
-    quote_model: str = "gpt-4o-mini"  # or "gemini-1.5-flash"
-    quote_max_length: int = 200  # Character limit for tweets
-    quote_temperature: float = 0.8
+    # Story Generation Settings
+    story_model: str = "gpt-4o-mini"  # or "gemini-1.5-flash"
+    story_max_length: int = 280  # Character limit for tweets (Twitter's max)
+    story_temperature: float = 0.9  # Higher creativity for stories
     
     # Image Generation Settings
     image_model: str = "dall-e-3"  # or "gemini-pro-vision"
@@ -52,15 +53,15 @@ class Config:
     
     # Posting Settings
     auto_post: bool = os.getenv("AUTO_POST", "false").lower() == "true"
-    posts_per_day: int = 3
+    posts_per_day: int = 3  # For batch generation (scheduler still needs this)
     
-    # Scheduling Settings
+    # Scheduling Settings - Every 8 hours
     post_times: list = None  # Will be set in __post_init__
     
     def __post_init__(self):
         """Set default post times if not provided."""
         if self.post_times is None:
-            self.post_times = ["09:00", "14:00", "19:00"]  # 9 AM, 2 PM, 7 PM
+            self.post_times = ["08:00", "16:00", "00:00"]  # 8 AM, 4 PM, Midnight (every 8 hours)
         
         # Create image output directory if it doesn't exist
         os.makedirs(self.image_output_dir, exist_ok=True)
@@ -80,37 +81,62 @@ class Config:
             raise ValueError("Twitter API credentials are required for auto-posting (either OAuth 2.0 Client ID/Secret or OAuth 1.0a keys)")
     
     @property
-    def quote_prompt_template(self) -> str:
-        """Template for generating quotes."""
-        return f"""
-        Generate an inspirational quote that embodies the concept of "{self.account_theme}".
+    def story_prompt_template(self) -> str:
+        """Template for generating short stories."""
+        story_topics = [
+            "a chance encounter at a coffee shop",
+            "finding something unexpected in an old book",
+            "a conversation with a stranger on public transport",
+            "a pet's mysterious behavior",
+            "discovering a hidden room in your house",
+            "a child's innocent question that changes everything",
+            "the last person on earth scenario",
+            "a time traveler's small mistake",
+            "an AI learning about human emotions",
+            "a superhero with a mundane day job",
+            "a world where colors have sounds",
+            "someone who can hear plants thoughts",
+            "a library that contains books from the future",
+            "the day gravity stopped working",
+            "a character who ages backwards",
+            "a town where everyone tells the truth",
+            "finding a message in a bottle",
+            "a magical vending machine",
+            "the first day at a peculiar job",
+            "a memory that isn't your own"
+        ]
         
-        Theme description: {self.account_description}
+        import random
+        topic = random.choice(story_topics)
+        
+        return f"""
+        Write a very short story (maximum {self.story_max_length} characters) about: {topic}
         
         Requirements:
-        - Maximum {self.quote_max_length} characters
-        - Should be thought-provoking and inspiring
-        - Can be an original quote or inspired by existing wisdom
-        - Focus on themes like: humility, growth through uncertainty, strength in vulnerability, wisdom from not knowing
-        - Should resonate with people who understand that admitting ignorance is a form of strength
-        - Include relevant hashtags at the end
+        - Complete narrative with beginning, middle, and end
+        - Engaging and creative
+        - Can be realistic, fantastical, humorous, or thought-provoking
+        - Should hook the reader immediately
+        - Include relevant hashtags at the end (2-3 hashtags max)
+        - Must fit in a single social media post
         
-        Return only the quote text with hashtags, nothing else.
+        Return only the story text with hashtags, nothing else.
         """
     
     @property
     def image_prompt_template(self) -> str:
         """Template for generating image prompts."""
         return """
-        Create a {style} image that visually represents this quote: "{quote}"
+        Create a {style} illustration that captures the essence of this story: "{story}"
         
         The image should:
-        - Be inspirational and thought-provoking
-        - Use calming, powerful colors
-        - Include minimal text overlay if any
-        - Have a clean, modern aesthetic
-        - Convey strength, wisdom, and growth
-        - Be suitable for social media sharing
+        - Visually represent the key scene or mood of the story
+        - Be engaging and eye-catching for social media
+        - Use vibrant, appealing colors
+        - Have an artistic, creative style
+        - Capture the emotional tone of the story
+        - Be suitable for Twitter/X posting
+        - Avoid including readable text in the image
         
         Style: {style}
         """

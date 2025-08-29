@@ -27,53 +27,53 @@ class ImageGenerator:
         if self.config.ai_provider == "openai":
             openai.api_key = self.config.openai_api_key
     
-    def generate_image(self, quote: str, filename_prefix: str) -> str:
-        """Generate an image based on the quote."""
+    def generate_image(self, story: str, filename_prefix: str) -> str:
+        """Generate an image based on the story."""
         try:
-            # Clean quote for image prompt (remove hashtags)
-            clean_quote = self._clean_quote_for_prompt(quote)
+            # Clean story for image prompt (remove hashtags)
+            clean_story = self._clean_story_for_prompt(story)
             
             if self.config.ai_provider == "openai":
-                return self._generate_with_dalle(clean_quote, filename_prefix)
+                return self._generate_with_dalle(clean_story, filename_prefix)
             else:
                 # Fallback to text-based image if AI generation is not available
-                return self._generate_text_image(quote, filename_prefix)
+                return self._generate_text_image(story, filename_prefix)
                 
         except Exception as e:
             logger.error(f"Error generating image: {str(e)}")
             # Fallback to text-based image
-            return self._generate_text_image(quote, filename_prefix)
+            return self._generate_text_image(story, filename_prefix)
     
-    def _clean_quote_for_prompt(self, quote: str) -> str:
-        """Clean the quote for use in image generation prompts."""
+    def _clean_story_for_prompt(self, story: str) -> str:
+        """Clean the story for use in image generation prompts."""
         # Remove hashtags and extra whitespace
-        lines = quote.split('\n')
+        lines = story.split('\n')
         clean_lines = []
         
         for line in lines:
             if not line.strip().startswith('#'):
                 clean_lines.append(line.strip())
         
-        clean_quote = ' '.join(clean_lines).strip()
+        clean_story = ' '.join(clean_lines).strip()
         
         # Remove hashtags that might be at the end
-        words = clean_quote.split()
+        words = clean_story.split()
         filtered_words = [word for word in words if not word.startswith('#')]
         
         return ' '.join(filtered_words)
     
-    def _generate_with_dalle(self, quote: str, filename_prefix: str) -> str:
+    def _generate_with_dalle(self, story: str, filename_prefix: str) -> str:
         """Generate image using OpenAI DALL-E."""
         try:
             client = openai.OpenAI(api_key=self.config.openai_api_key)
             
             # Create image prompt
             image_prompt = self.config.image_prompt_template.format(
-                quote=quote,
+                story=story,
                 style=self.config.image_style
             )
             
-            logger.info(f"Generating image with DALL-E for quote: {quote[:50]}...")
+            logger.info(f"Generating image with DALL-E for story: {story[:50]}...")
             
             response = client.images.generate(
                 model=self.config.image_model,
@@ -106,20 +106,20 @@ class ImageGenerator:
         with open(filepath, 'wb') as f:
             f.write(response.content)
     
-    def _generate_text_image(self, quote: str, filename_prefix: str) -> str:
+    def _generate_text_image(self, story: str, filename_prefix: str) -> str:
         """Generate a simple text-based image as fallback."""
         try:
             # Create image dimensions
             width, height = 1080, 1080
-            background_color = (45, 55, 72)  # Dark blue-gray
+            background_color = (25, 35, 50)  # Dark navy for stories
             text_color = (255, 255, 255)  # White
             
             # Create image
             image = Image.new('RGB', (width, height), background_color)
             draw = ImageDraw.Draw(image)
             
-            # Clean quote for display (remove hashtags)
-            display_quote = self._clean_quote_for_display(quote)
+            # Clean story for display (remove hashtags)
+            display_story = self._clean_story_for_display(story)
             
             # Try to load a font, fallback to default if not available
             try:
@@ -136,7 +136,7 @@ class ImageGenerator:
             max_width = width - (margin * 2)
             
             # Simple text wrapping
-            words = display_quote.split()
+            words = display_story.split()
             lines = []
             current_line = []
             
@@ -186,10 +186,10 @@ class ImageGenerator:
             logger.error(f"Error generating text image: {str(e)}")
             raise
     
-    def _clean_quote_for_display(self, quote: str) -> str:
-        """Clean quote for display on image."""
+    def _clean_story_for_display(self, story: str) -> str:
+        """Clean story for display on image."""
         # Remove hashtags
-        words = quote.split()
+        words = story.split()
         filtered_words = [word for word in words if not word.startswith('#')]
         return ' '.join(filtered_words).strip()
     

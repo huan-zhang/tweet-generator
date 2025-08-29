@@ -1,0 +1,67 @@
+name: Story Tweet Bot
+
+on:
+  schedule:
+    # Run every 8 hours: 00:00, 08:00, 16:00 UTC
+    - cron: '0 0,8,16 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  post-story:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create generated_images directory
+      run: mkdir -p generated_images
+      
+    - name: Generate and post story
+      env:
+        # AI Provider
+        AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        
+        # Twitter API credentials
+        TWITTER_CLIENT_ID: ${{ secrets.TWITTER_CLIENT_ID }}
+        TWITTER_CLIENT_SECRET: ${{ secrets.TWITTER_CLIENT_SECRET }}
+        TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+        TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+        TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+        TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        
+        # Enable auto-posting
+        AUTO_POST: true
+      run: |
+        echo "Starting story generation..."
+        python main.py
+        echo "Story generation completed!"
+        
+    - name: Upload generated images (optional)
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: generated-images-${{ github.run_number }}
+        path: generated_images/
+        retention-days: 7

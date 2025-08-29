@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import List, Dict
 
 from config import Config
-from quote_generator import QuoteGenerator
+from story_generator import StoryGenerator
 from image_generator import ImageGenerator
 from twitter_poster import TwitterPoster
 
@@ -28,34 +28,60 @@ logger = logging.getLogger(__name__)
 
 
 class TweetGenerator:
-    """Main class for generating and posting tweets."""
+    """Main class for generating and posting story tweets."""
     
     def __init__(self):
         self.config = Config()
-        self.quote_gen = QuoteGenerator(self.config)
+        self.story_gen = StoryGenerator(self.config)
         self.image_gen = ImageGenerator(self.config)
         self.twitter = TwitterPoster(self.config)
         
+    def generate_single_post(self) -> Dict:
+        """Generate a single post with story and image."""
+        logger.info("Generating single story post")
+        
+        try:
+            # Generate story on random topic
+            story = self.story_gen.generate_story()
+            logger.info(f"Generated story: {story[:50]}...")
+            
+            # Generate image based on the story
+            image_path = self.image_gen.generate_image(story, f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            logger.info(f"Generated image: {image_path}")
+            
+            post = {
+                'story': story,
+                'image_path': image_path,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            logger.info("Successfully generated single story post")
+            return post
+            
+        except Exception as e:
+            logger.error(f"Error generating post: {str(e)}")
+            raise
+    
     def generate_daily_posts(self) -> List[Dict]:
-        """Generate 3 daily posts with quotes and images."""
+        """Generate multiple posts (for scheduler use)."""
         posts = []
         
-        logger.info("Starting daily post generation for IgnorantStrength")
+        logger.info("Starting daily story post generation")
         
-        for i in range(3):
+        for i in range(self.config.posts_per_day):
             try:
-                logger.info(f"Generating post {i+1}/3")
+                logger.info(f"Generating story post {i+1}/{self.config.posts_per_day}")
                 
-                # Generate quote based on "ignorant strength" theme
-                quote = self.quote_gen.generate_quote()
-                logger.info(f"Generated quote: {quote[:50]}...")
+                # Generate story on random topic
+                story = self.story_gen.generate_story()
+                logger.info(f"Generated story: {story[:50]}...")
                 
-                # Generate image based on the quote
-                image_path = self.image_gen.generate_image(quote, f"post_{i+1}_{datetime.now().strftime('%Y%m%d')}")
+                # Generate image based on the story
+                image_path = self.image_gen.generate_image(story, f"story_{i+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
                 logger.info(f"Generated image: {image_path}")
                 
                 posts.append({
-                    'quote': quote,
+                    'story': story,
                     'image_path': image_path,
                     'timestamp': datetime.now().isoformat()
                 })
@@ -73,7 +99,7 @@ class TweetGenerator:
                 logger.info(f"Posting to Twitter: post {i+1}")
                 
                 tweet_id = self.twitter.post_tweet(
-                    text=post['quote'],
+                    text=post['story'],
                     image_path=post['image_path']
                 )
                 
@@ -86,27 +112,20 @@ class TweetGenerator:
     def run(self):
         """Main execution method."""
         try:
-            logger.info("=== Starting IgnorantStrength Tweet Generator ===")
+            logger.info("=== Starting Story Tweet Generator ===")
             
-            # Generate posts
-            posts = self.generate_daily_posts()
-            
-            if not posts:
-                logger.error("No posts were generated successfully")
-                return
-                
-            logger.info(f"Generated {len(posts)} posts successfully")
+            # Generate single post
+            post = self.generate_single_post()
             
             # Post to Twitter if enabled
             if self.config.auto_post:
-                self.post_to_twitter(posts)
+                self.post_to_twitter([post])
             else:
-                logger.info("Auto-posting disabled. Posts generated but not posted.")
-                for i, post in enumerate(posts):
-                    logger.info(f"Post {i+1}: {post['quote']}")
-                    logger.info(f"Image: {post['image_path']}")
+                logger.info("Auto-posting disabled. Post generated but not posted.")
+                logger.info(f"Story: {post['story']}")
+                logger.info(f"Image: {post['image_path']}")
             
-            logger.info("=== Tweet generation completed ===")
+            logger.info("=== Story generation completed ===")
             
         except Exception as e:
             logger.error(f"Critical error in main execution: {str(e)}")

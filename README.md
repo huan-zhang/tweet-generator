@@ -1,24 +1,25 @@
-# IgnorantStrength Tweet Generator
+# Story Tweet Generator
 
-An automated Python application that generates 3 inspirational X (Twitter) posts daily based on the theme of "ignorant strength" - finding power in humility, learning from uncertainty, and growing through admitting what you don't know.
+An automated Python application that generates creative short stories on random topics and posts them to X (Twitter) with AI-generated illustrations. Each story is designed to entertain, inspire, or spark imagination in a brief social media format.
 
 ## Features
 
-- **AI-Powered Quote Generation**: Uses OpenAI GPT or Google Gemini to create original inspirational quotes
-- **Automated Image Creation**: Generates accompanying images using DALL-E or creates text-based images
-- **Scheduled Posting**: Automatically posts to X/Twitter at configured times
+- **AI-Powered Story Generation**: Uses OpenAI GPT or Google Gemini to create original short stories
+- **Random Topic Selection**: 20+ diverse story prompts including fantasy, sci-fi, slice-of-life, and mystery
+- **Automated Image Creation**: Generates accompanying illustrations using DALL-E or creates text-based images
+- **Scheduled Posting**: Automatically posts to X/Twitter every 8 hours
 - **Dual AI Support**: Choose between OpenAI or Gemini models
-- **Flexible Scheduling**: Run immediately, schedule daily posts, or view posting history
-- **Fallback Mechanisms**: Built-in fallbacks ensure posts are always generated
+- **Flexible Operation**: Run immediately, schedule posts, or view posting history
+- **Fallback Mechanisms**: Built-in fallback stories ensure posts are always generated
 
-## Theme: "Ignorant Strength"
+## Story Topics
 
-The concept explores finding strength in:
-- Admitting what you don't know
-- Embracing uncertainty as a growth opportunity
-- Learning from failures and mistakes  
-- Drawing power from humility and curiosity
-- The wisdom that comes from intellectual honesty
+Random topics include:
+- Fantasy adventures (dragons, magical vending machines, time travelers)
+- Sci-Fi scenarios (AI emotions, future libraries, gravity stopping)
+- Slice-of-life moments (coffee shop encounters, pet mysteries)
+- Supernatural elements (hearing plant thoughts, mysterious rooms)
+- Humor and everyday situations (superhero day jobs, social media time travel problems)
 
 ## Installation
 
@@ -94,9 +95,18 @@ python main.py
 ```
 
 ### Scheduled Operation
+
+#### Local Scheduling
 ```bash
-# Start the scheduler (posts at 9 AM, 2 PM, 7 PM daily)
+# Start the scheduler (posts every 8 hours: 8 AM, 4 PM, Midnight)
 python scheduler.py --mode schedule
+```
+
+#### Cloud Automation (Recommended)
+Use GitHub Actions for completely free automated posting:
+```bash
+# See GITHUB_ACTIONS_SETUP.md for detailed instructions
+# Runs automatically every 8 hours in the cloud - no server needed!
 ```
 
 ### Generate Posts Immediately
@@ -132,16 +142,16 @@ tweet-generator/
 ## Customization
 
 ### Modify Posting Times
-Edit `config.py`:
+Edit `config.py` to change 8-hour intervals:
 ```python
-post_times: list = ["09:00", "14:00", "19:00"]
+post_times: list = ["08:00", "16:00", "00:00"]  # 8 AM, 4 PM, Midnight
 ```
 
-### Adjust Quote Generation
+### Adjust Story Generation
 In `config.py`, modify:
-- `quote_max_length`: Character limit for posts
-- `quote_temperature`: Creativity level (0.0-1.0)
-- `quote_model`: AI model to use
+- `story_max_length`: Character limit for posts (default: 280)
+- `story_temperature`: Creativity level (default: 0.9 for more creative stories)
+- `story_model`: AI model to use
 
 ### Customize Image Generation
 - `image_model`: DALL-E model version

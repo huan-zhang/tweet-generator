@@ -1,0 +1,72 @@
+name: Manual Story Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry mode (no actual posting)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  test-story:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create generated_images directory
+      run: mkdir -p generated_images
+      
+    - name: Test story generation
+      env:
+        # AI Provider
+        AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        
+        # Twitter API credentials  
+        TWITTER_CLIENT_ID: ${{ secrets.TWITTER_CLIENT_ID }}
+        TWITTER_CLIENT_SECRET: ${{ secrets.TWITTER_CLIENT_SECRET }}
+        TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+        TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+        TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+        TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        
+        # Set posting mode based on input
+        AUTO_POST: ${{ inputs.dry_run == 'false' }}
+      run: |
+        if [ "${{ inputs.dry_run }}" = "true" ]; then
+          echo "🧪 Running in DRY RUN mode - no actual posting"
+          export AUTO_POST=false
+        else
+          echo "🚀 Running in LIVE mode - will post to Twitter"
+          export AUTO_POST=true
+        fi
+        
+        echo "Starting story generation test..."
+        python main.py
+        echo "Story generation test completed!"
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ github.run_number }}
+        path: |
+          generated_images/
+          *.log
+        retention-days: 3

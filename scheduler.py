@@ -40,57 +40,58 @@ class TweetScheduler:
         """Schedule daily posts at configured times."""
         config = self.tweet_generator.config
         
-        logger.info(f"Scheduling daily posts for times: {config.post_times}")
+        logger.info(f"Scheduling story posts every 8 hours at: {config.post_times}")
         
         # Clear any existing jobs
         schedule.clear()
         
-        # Schedule posts at specified times
+        # Schedule posts at specified times (every 8 hours)
         for post_time in config.post_times:
             schedule.every().day.at(post_time).do(self._run_daily_generation)
-            logger.info(f"Scheduled daily post at {post_time}")
+            logger.info(f"Scheduled story post at {post_time} (8-hour intervals)")
         
         # Optional: Schedule a test run every hour during development
         # schedule.every().hour.do(self._run_test_generation)
     
     def _run_daily_generation(self):
-        """Run the daily tweet generation process."""
+        """Run scheduled story generation (every 8 hours)."""
         try:
-            logger.info("Starting scheduled tweet generation")
+            logger.info("Starting scheduled story generation")
             
-            # Check if we've already posted today at this time
-            if self._already_posted_today():
-                logger.info("Already posted today at this time slot. Skipping.")
+            # Check if we've already posted in this time slot
+            if self._already_posted_in_time_slot():
+                logger.info("Already posted in this 8-hour time slot. Skipping.")
                 return
             
-            # Generate single post for this time slot
-            posts = self.tweet_generator.generate_daily_posts()
+            # Generate single story post for this time slot
+            post = self.tweet_generator.generate_single_post()
             
-            if posts:
-                # Take only the first post for this time slot
-                post = posts[0]
-                
+            if post:
                 # Post to Twitter if enabled
                 if self.tweet_generator.config.auto_post:
                     self.tweet_generator.post_to_twitter([post])
+                    logger.info("Story posted to Twitter")
+                else:
+                    logger.info("Auto-posting disabled. Story generated but not posted.")
+                    logger.info(f"Story: {post['story']}")
                 
                 # Record the post
                 self._record_post(post)
                 
-                logger.info("Scheduled tweet generation completed successfully")
+                logger.info("Scheduled story generation completed successfully")
             else:
-                logger.error("No posts generated during scheduled run")
+                logger.error("No story generated during scheduled run")
                 
         except Exception as e:
-            logger.error(f"Error during scheduled tweet generation: {str(e)}")
+            logger.error(f"Error during scheduled story generation: {str(e)}")
     
     def _run_test_generation(self):
         """Run a test generation (for development)."""
         logger.info("Running test generation (development mode)")
         try:
             # Generate one test post
-            quote = self.tweet_generator.quote_gen.generate_quote()
-            logger.info(f"Test quote generated: {quote}")
+            story = self.tweet_generator.story_gen.generate_story()
+            logger.info(f"Test story generated: {story}")
             
             # Don't post during test runs
             logger.info("Test generation completed (not posted)")
@@ -98,8 +99,8 @@ class TweetScheduler:
         except Exception as e:
             logger.error(f"Error during test generation: {str(e)}")
     
-    def _already_posted_today(self) -> bool:
-        """Check if we've already posted today at this time slot."""
+    def _already_posted_in_time_slot(self) -> bool:
+        """Check if we've already posted in this 8-hour time slot."""
         try:
             if not os.path.exists(self.post_history_file):
                 return False
@@ -107,15 +108,38 @@ class TweetScheduler:
             with open(self.post_history_file, 'r') as f:
                 history = json.load(f)
             
-            today = datetime.now().strftime('%Y-%m-%d')
-            current_hour = datetime.now().hour
+            current_time = datetime.now()
+            current_hour = current_time.hour
             
-            # Check if we have a post for today in the current hour window
+            # Define 8-hour time slots: 0-7, 8-15, 16-23
+            if 0 <= current_hour < 8:
+                time_slot = "night"  # 00:00 - 07:59
+            elif 8 <= current_hour < 16:
+                time_slot = "morning"  # 08:00 - 15:59
+            else:
+                time_slot = "evening"  # 16:00 - 23:59
+            
+            today = current_time.strftime('%Y-%m-%d')
+            
+            # Check if we have a post for today in the current time slot
             for post in history.get('posts', []):
                 post_date = post.get('date')
+                if post_date != today:
+                    continue
+                    
                 post_time = datetime.fromisoformat(post.get('timestamp', ''))
+                post_hour = post_time.hour
                 
-                if post_date == today and abs(post_time.hour - current_hour) < 2:
+                # Determine which time slot the post was in
+                if 0 <= post_hour < 8:
+                    post_slot = "night"
+                elif 8 <= post_hour < 16:
+                    post_slot = "morning"
+                else:
+                    post_slot = "evening"
+                
+                if post_slot == time_slot:
+                    logger.info(f"Found existing post in {time_slot} slot at {post_time.strftime('%H:%M')}")
                     return True
             
             return False
@@ -137,7 +161,7 @@ class TweetScheduler:
             post_record = {
                 'date': datetime.now().strftime('%Y-%m-%d'),
                 'timestamp': post.get('timestamp', datetime.now().isoformat()),
-                'quote': post.get('quote', '')[:100],  # Truncate for storage
+                'story': post.get('story', '')[:100],  # Truncate for storage
                 'image_path': post.get('image_path', ''),
                 'posted_at': datetime.now().isoformat()
             }
@@ -187,7 +211,7 @@ class TweetScheduler:
             if posts:
                 logger.info(f"Generated {len(posts)} posts:")
                 for i, post in enumerate(posts, 1):
-                    logger.info(f"Post {i}: {post['quote']}")
+                    logger.info(f"Post {i}: {post['story']}")
                     logger.info(f"Image: {post['image_path']}")
                     
                     # Record each post
@@ -267,7 +291,7 @@ if __name__ == "__main__":
         print("=" * 50)
         for post in history:
             print(f"Date: {post['date']}")
-            print(f"Quote: {post['quote']}")
+            print(f"Story: {post['story']}")
             print(f"Image: {post['image_path']}")
             print(f"Posted at: {post['posted_at']}")
             print("-" * 30)
