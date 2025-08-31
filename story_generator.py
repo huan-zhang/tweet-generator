@@ -61,7 +61,7 @@ class StoryGenerator:
                     {"role": "user", "content": self.config.story_prompt_template}
                 ],
                 temperature=self.config.story_temperature,
-                max_tokens=120
+                max_tokens=250
             )
             
             story = response.choices[0].message.content.strip()
@@ -84,7 +84,7 @@ class StoryGenerator:
                 self.config.story_prompt_template,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.config.story_temperature,
-                    max_output_tokens=120
+                    max_output_tokens=250
                 )
             )
             

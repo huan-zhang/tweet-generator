@@ -42,8 +42,10 @@ class Config:
     
     # Story Generation Settings
     story_model: str = "gpt-4o-mini"  # or "gemini-1.5-flash"
-    story_max_length: int = 280  # Character limit for tweets (Twitter's max)
+    story_max_length: int = 800  # Allow longer stories for better threading
     story_temperature: float = 0.9  # Higher creativity for stories
+    use_threads: bool = True  # Enable Twitter threads for longer stories
+    thread_max_length: int = 270  # Characters per tweet in thread (optimized for Twitter)
     
     # Image Generation Settings
     image_model: str = "dall-e-3"  # or "gemini-pro-vision"
@@ -110,15 +112,25 @@ class Config:
         topic = random.choice(story_topics)
         
         return f"""
-        Write a very short story (maximum {self.story_max_length} characters) about: {topic}
+        Write a complete short story about: {topic}
         
-        Requirements:
-        - Complete narrative with beginning, middle, and end
-        - Engaging and creative
+        CRITICAL REQUIREMENTS:
+        - Maximum {self.story_max_length} characters total (including hashtags)
+        - Approximately 120-150 words maximum
+        - Must have complete beginning, middle, and satisfying ending
+        - Include 2-3 relevant hashtags at the very end
+        - Write a COMPLETE story, not a fragment or cliffhanger
+        
+        Story Guidelines:
+        - Rich in detail and character development
+        - Engaging and creative storytelling
         - Can be realistic, fantastical, humorous, or thought-provoking
-        - Should hook the reader immediately
-        - Include relevant hashtags at the end (2-3 hashtags max)
-        - Must fit in a single social media post
+        - Hook the reader immediately and keep them engaged
+        - Write in a way that flows well if split into Twitter thread
+        - Each sentence should be meaningful and engaging on its own
+        - Make it compelling enough to share and retweet
+        
+        IMPORTANT: Stay within the {self.story_max_length} character limit. Write a complete narrative arc that feels finished and satisfying to readers.
         
         Return only the story text with hashtags, nothing else.
         """

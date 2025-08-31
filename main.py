@@ -7,6 +7,7 @@ Generates 3 daily posts with quotes and AI-generated images.
 import os
 import sys
 import logging
+import re
 from datetime import datetime
 from typing import List, Dict
 
@@ -92,18 +93,108 @@ class TweetGenerator:
                 
         return posts
     
+    def _split_story_into_tweets(self, story: str) -> List[str]:
+        """Split a long story into Twitter-sized chunks for threading."""
+        if len(story) <= self.config.thread_max_length:
+            return [story]
+        
+        # Find hashtags at the end
+        hashtags = ""
+        hashtag_match = re.search(r'(\s+#\w+(?:\s+#\w+)*)\s*$', story)
+        if hashtag_match:
+            hashtags = hashtag_match.group(1)
+            story = story[:hashtag_match.start()].strip()
+        
+        # Improved sentence splitting using regex
+        sentence_pattern = r'(?<=[.!?])\s+(?=[A-Z])'
+        sentences = re.split(sentence_pattern, story)
+        
+        # Clean up sentences
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
+        # Group sentences into tweets with better logic
+        tweets = []
+        current_tweet = ""
+        thread_number_space = 10  # Reserve space for " (X/Y)" numbering
+        available_space = self.config.thread_max_length - thread_number_space
+        
+        for sentence in sentences:
+            # For the last tweet, also reserve space for hashtags
+            is_last_sentence = sentence == sentences[-1]
+            hashtag_space = len(hashtags) if is_last_sentence else 0
+            actual_space = available_space - hashtag_space
+            
+            # Check if adding this sentence would exceed limit
+            if current_tweet:
+                test_tweet = current_tweet + " " + sentence
+            else:
+                test_tweet = sentence
+            
+            if len(test_tweet) <= actual_space:
+                current_tweet = test_tweet
+            else:
+                # If current tweet has content, save it and start new one
+                if current_tweet:
+                    tweets.append(current_tweet.strip())
+                    current_tweet = sentence
+                else:
+                    # Single sentence is too long, need to split it
+                    words = sentence.split()
+                    current_tweet = ""
+                    for word in words:
+                        test_with_word = current_tweet + " " + word if current_tweet else word
+                        if len(test_with_word) <= actual_space:
+                            current_tweet = test_with_word
+                        else:
+                            if current_tweet:
+                                tweets.append(current_tweet.strip())
+                            current_tweet = word
+                    # Don't reset current_tweet here as it contains the remaining words
+        
+        # Add the last tweet if there's content
+        if current_tweet:
+            tweets.append(current_tweet.strip())
+        
+        # Add hashtags only to the last tweet
+        if tweets and hashtags:
+            tweets[-1] += hashtags
+        
+        # Add thread numbering only if we have multiple tweets
+        if len(tweets) > 1:
+            for i in range(len(tweets)):
+                tweets[i] = f"{tweets[i]} ({i+1}/{len(tweets)})"
+        
+        return tweets
+
+
     def post_to_twitter(self, posts: List[Dict]) -> None:
         """Post the generated content to Twitter/X."""
         for i, post in enumerate(posts):
             try:
                 logger.info(f"Posting to Twitter: post {i+1}")
                 
-                tweet_id = self.twitter.post_tweet(
-                    text=post['story'],
-                    image_path=post['image_path']
-                )
-                
-                logger.info(f"Successfully posted tweet ID: {tweet_id}")
+                # Check if story needs to be split into threads
+                if self.config.use_threads and len(post['story']) > self.config.thread_max_length:
+                    tweet_parts = self._split_story_into_tweets(post['story'])
+                    logger.info(f"Story is long, posting as thread with {len(tweet_parts)} tweets")
+                    
+                    thread_tweets = []
+                    for j, part in enumerate(tweet_parts):
+                        thread_tweets.append({
+                            'text': part,
+                            'image_path': post['image_path'] if j == 0 else None
+                        })
+                    
+                    tweet_ids = self.twitter.post_thread(thread_tweets)
+                    logger.info(f"Successfully posted thread with IDs: {tweet_ids}")
+                    
+                else:
+                    # Post as single tweet
+                    tweet_id = self.twitter.post_tweet(
+                        text=post['story'],
+                        image_path=post['image_path']
+                    )
+                    logger.info(f"Successfully posted single tweet ID: {tweet_id}")
                 
             except Exception as e:
                 logger.error(f"Error posting tweet {i+1}: {str(e)}")
