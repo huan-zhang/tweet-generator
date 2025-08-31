@@ -33,7 +33,17 @@ class StoryGenerator:
             openai.api_key = self.config.openai_api_key
         elif self.config.ai_provider == "gemini":
             genai.configure(api_key=self.config.gemini_api_key)
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            # Use the story_model from config (allows switching between versions)
+            if 'gemini-2.5-flash' in self.config.story_model:
+                model_name = 'gemini-2.5-flash'
+            elif 'gemini-1.5-flash' in self.config.story_model:
+                model_name = 'gemini-1.5-flash'
+            elif 'gemini' in self.config.story_model:
+                model_name = self.config.story_model
+            else:
+                # Default to 1.5-flash if using gemini provider but no gemini model specified
+                model_name = 'gemini-1.5-flash'
+            self.gemini_model = genai.GenerativeModel(model_name)
         else:
             raise ValueError(f"Unsupported AI provider: {self.config.ai_provider}")
     
@@ -80,15 +90,42 @@ class StoryGenerator:
     def _generate_with_gemini(self) -> str:
         """Generate story using Gemini API."""
         try:
+            # Configure safety settings to be more permissive for creative writing
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+            ]
+            
             response = self.gemini_model.generate_content(
                 self.config.story_prompt_template,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.config.story_temperature,
                     max_output_tokens=250
-                )
+                ),
+                safety_settings=safety_settings
             )
             
-            story = response.text.strip()
+            # Better error handling for Gemini responses
+            if not response.candidates:
+                raise Exception("No candidates returned from Gemini")
+            
+            candidate = response.candidates[0]
+            
+            # Check if response was blocked for safety reasons
+            if hasattr(candidate, 'finish_reason') and candidate.finish_reason != 1:  # 1 = STOP (success)
+                logger.warning(f"Gemini response finished with reason: {candidate.finish_reason}")
+                if hasattr(response, 'prompt_feedback'):
+                    logger.warning(f"Prompt feedback: {response.prompt_feedback}")
+                raise Exception(f"Response blocked or incomplete (finish_reason: {candidate.finish_reason})")
+            
+            # Try to extract text safely
+            if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                story = candidate.content.parts[0].text.strip()
+            else:
+                # Fallback to response.text if parts are available
+                story = response.text.strip()
             
             # Validate story length
             if len(story) > self.config.story_max_length:

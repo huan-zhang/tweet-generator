@@ -41,7 +41,7 @@ class Config:
     """
     
     # Story Generation Settings
-    story_model: str = "gpt-4o-mini"  # or "gemini-1.5-flash"
+    story_model: str = "gpt-4o-mini"  # or "gemini-1.5-flash" or "gemini-2.5-flash"
     story_max_length: int = 800  # Allow longer stories for better threading
     story_temperature: float = 0.9  # Higher creativity for stories
     use_threads: bool = True  # Enable Twitter threads for longer stories
