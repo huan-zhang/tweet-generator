@@ -2,8 +2,8 @@ name: Story Tweet Bot
 
 on:
   schedule:
-    # Run every 8 hours: 00:00, 08:00, 16:00 UTC
-    - cron: '0 0,8,16 * * *'
+    # Run twice daily: 08:00 and 20:00 UTC (12-hour intervals)
+    - cron: '0 8,20 * * *'
   workflow_dispatch: # Allow manual triggering
 
 jobs:

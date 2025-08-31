@@ -40,7 +40,7 @@ class TweetScheduler:
         """Schedule daily posts at configured times."""
         config = self.tweet_generator.config
         
-        logger.info(f"Scheduling story posts every 8 hours at: {config.post_times}")
+        logger.info(f"Scheduling story posts twice daily at: {config.post_times}")
         
         # Clear any existing jobs
         schedule.clear()
@@ -48,19 +48,19 @@ class TweetScheduler:
         # Schedule posts at specified times (every 8 hours)
         for post_time in config.post_times:
             schedule.every().day.at(post_time).do(self._run_daily_generation)
-            logger.info(f"Scheduled story post at {post_time} (8-hour intervals)")
+            logger.info(f"Scheduled story post at {post_time} (twice daily)")
         
         # Optional: Schedule a test run every hour during development
         # schedule.every().hour.do(self._run_test_generation)
     
     def _run_daily_generation(self):
-        """Run scheduled story generation (every 8 hours)."""
+        """Run scheduled story generation (twice daily)."""
         try:
             logger.info("Starting scheduled story generation")
             
             # Check if we've already posted in this time slot
             if self._already_posted_in_time_slot():
-                logger.info("Already posted in this 8-hour time slot. Skipping.")
+                logger.info("Already posted in this 12-hour time slot. Skipping.")
                 return
             
             # Generate single story post for this time slot
@@ -100,7 +100,7 @@ class TweetScheduler:
             logger.error(f"Error during test generation: {str(e)}")
     
     def _already_posted_in_time_slot(self) -> bool:
-        """Check if we've already posted in this 8-hour time slot."""
+        """Check if we've already posted in this 12-hour time slot."""
         try:
             if not os.path.exists(self.post_history_file):
                 return False
@@ -111,13 +111,11 @@ class TweetScheduler:
             current_time = datetime.now()
             current_hour = current_time.hour
             
-            # Define 8-hour time slots: 0-7, 8-15, 16-23
-            if 0 <= current_hour < 8:
-                time_slot = "night"  # 00:00 - 07:59
-            elif 8 <= current_hour < 16:
-                time_slot = "morning"  # 08:00 - 15:59
+            # Define 12-hour time slots: 0-11 (morning), 12-23 (evening)
+            if 0 <= current_hour < 12:
+                time_slot = "morning"  # 00:00 - 11:59
             else:
-                time_slot = "evening"  # 16:00 - 23:59
+                time_slot = "evening"  # 12:00 - 23:59
             
             today = current_time.strftime('%Y-%m-%d')
             
@@ -131,9 +129,7 @@ class TweetScheduler:
                 post_hour = post_time.hour
                 
                 # Determine which time slot the post was in
-                if 0 <= post_hour < 8:
-                    post_slot = "night"
-                elif 8 <= post_hour < 16:
+                if 0 <= post_hour < 12:
                     post_slot = "morning"
                 else:
                     post_slot = "evening"

@@ -55,15 +55,15 @@ class Config:
     
     # Posting Settings
     auto_post: bool = os.getenv("AUTO_POST", "false").lower() == "true"
-    posts_per_day: int = 3  # For batch generation (scheduler still needs this)
+    posts_per_day: int = 2  # For batch generation (twice daily)
     
-    # Scheduling Settings - Every 8 hours
+    # Scheduling Settings - Twice daily (12-hour intervals)
     post_times: list = None  # Will be set in __post_init__
     
     def __post_init__(self):
         """Set default post times if not provided."""
         if self.post_times is None:
-            self.post_times = ["08:00", "16:00", "00:00"]  # 8 AM, 4 PM, Midnight (every 8 hours)
+            self.post_times = ["08:00", "20:00"]  # 8 AM, 8 PM (twice daily, 12-hour intervals)
         
         # Create image output directory if it doesn't exist
         os.makedirs(self.image_output_dir, exist_ok=True)
