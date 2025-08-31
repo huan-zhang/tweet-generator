@@ -32,8 +32,8 @@ jobs:
       
     - name: Test story generation
       env:
-        # AI Provider (defaults to openai if not set)
-        AI_PROVIDER: ${{ secrets.AI_PROVIDER || 'openai' }}
+        # AI Provider (use Gemini for manual testing)
+        AI_PROVIDER: ${{ secrets.AI_PROVIDER || 'gemini' }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         
@@ -52,6 +52,7 @@ jobs:
         echo "🔧 Configuration Check:"
         echo "AI_PROVIDER: $AI_PROVIDER"
         echo "OPENAI_API_KEY: $(if [ -n "$OPENAI_API_KEY" ]; then echo "Set (${#OPENAI_API_KEY} chars)"; else echo "NOT SET"; fi)"
+        echo "GEMINI_API_KEY: $(if [ -n "$GEMINI_API_KEY" ]; then echo "Set (${#GEMINI_API_KEY} chars)"; else echo "NOT SET"; fi)"
         echo "AUTO_POST: $AUTO_POST"
         echo ""
         
