@@ -48,7 +48,7 @@ class Config:
     thread_max_length: int = 270  # Characters per tweet in thread (optimized for Twitter)
     
     # Image Generation Settings
-    image_model: str = "dall-e-3"  # or "gemini-pro-vision"
+    image_model: str = "dall-e-3"  # or "gemini-2.5-flash-image-preview"
     image_size: str = "1024x1024"
     image_style: str = "minimalist, inspirational"
     image_output_dir: str = "generated_images"

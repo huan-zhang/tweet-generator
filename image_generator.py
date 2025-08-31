@@ -9,8 +9,11 @@ import requests
 from datetime import datetime
 from typing import Optional
 import openai
+import google.generativeai as genai
+from google.genai import types
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,12 @@ class ImageGenerator:
         """Initialize the AI client based on the configured provider."""
         if self.config.ai_provider == "openai":
             openai.api_key = self.config.openai_api_key
+        elif self.config.ai_provider == "gemini":
+            if self.config.gemini_api_key:
+                genai.configure(api_key=self.config.gemini_api_key)
+                # Use the new Google GenAI client for image generation
+                from google import genai as google_genai
+                self.genai_client = google_genai.Client(api_key=self.config.gemini_api_key)
     
     def generate_image(self, story: str, filename_prefix: str) -> str:
         """Generate an image based on the story."""
@@ -33,10 +42,13 @@ class ImageGenerator:
             # Clean story for image prompt (remove hashtags)
             clean_story = self._clean_story_for_prompt(story)
             
-            if self.config.ai_provider == "openai":
+            if self.config.ai_provider == "gemini" and self.config.gemini_api_key:
+                return self._generate_with_gemini(clean_story, filename_prefix)
+            elif self.config.openai_api_key:
                 return self._generate_with_dalle(clean_story, filename_prefix)
             else:
-                # Fallback to text-based image if AI generation is not available
+                # Fallback to text-based image if no AI image generation is available
+                logger.warning("No AI image generation available, falling back to text-based image")
                 return self._generate_text_image(story, filename_prefix)
                 
         except Exception as e:
@@ -96,6 +108,51 @@ class ImageGenerator:
             
         except Exception as e:
             logger.error(f"DALL-E generation error: {str(e)}")
+            raise
+    
+    def _generate_with_gemini(self, story: str, filename_prefix: str) -> str:
+        """Generate image using Gemini 2.5 Flash image generation."""
+        try:
+            # Create image prompt
+            image_prompt = self.config.image_prompt_template.format(
+                story=story,
+                style=self.config.image_style
+            )
+            
+            logger.info(f"Generating image with Gemini 2.5 Flash for story: {story[:50]}...")
+            
+            # Use Gemini 2.5 Flash for image generation
+            response = self.genai_client.models.generate_content(
+                model="gemini-2.5-flash-image-preview",
+                contents=[image_prompt],
+                config=types.GenerateContentConfig(
+                    response_modalities=["Text", "Image"]
+                )
+            )
+            
+            # Extract the image from response
+            image_data = None
+            for part in response.candidates[0].content.parts:
+                if part.inline_data is not None:
+                    image_data = part.inline_data.data
+                    break
+            
+            if not image_data:
+                raise Exception("No image data returned from Gemini")
+            
+            # Save the image
+            filename = f"{filename_prefix}_{datetime.now().strftime('%H%M%S')}.png"
+            filepath = os.path.join(self.config.image_output_dir, filename)
+            
+            # Convert bytes to PIL Image and save
+            image = Image.open(BytesIO(image_data))
+            image.save(filepath, 'PNG')
+            
+            logger.info(f"Successfully generated image with Gemini: {filepath}")
+            return filepath
+            
+        except Exception as e:
+            logger.error(f"Gemini image generation error: {str(e)}")
             raise
     
     def _download_image(self, url: str, filepath: str) -> None:
