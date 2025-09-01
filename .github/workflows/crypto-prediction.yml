@@ -1,7 +1,10 @@
 name: Crypto Prediction Bot
 
 on:
-  workflow_dispatch:
+  schedule:
+    # Run twice daily: 02:00 and 14:00 UTC (offset from story posts at 08:00, 20:00)
+    - cron: '0 2,14 * * *'
+  workflow_dispatch: # Allow manual triggering
     inputs:
       dry_run:
         description: 'Run in dry mode (no actual posting)'
@@ -50,8 +53,8 @@ jobs:
         
     - name: Generate crypto prediction
       env:
-        # AI Provider selection
-        AI_PROVIDER: ${{ inputs.ai_provider }}
+        # AI Provider selection (defaults to gemini for scheduled runs)
+        AI_PROVIDER: ${{ inputs.ai_provider || 'gemini' }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         
@@ -64,17 +67,20 @@ jobs:
         TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
         TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
         
-        # Set posting mode based on input
-        AUTO_POST: ${{ inputs.dry_run == 'false' }}
+        # Enable auto-posting for scheduled runs, respect manual input for manual runs
+        AUTO_POST: ${{ github.event_name == 'schedule' || inputs.dry_run == 'false' }}
       run: |
         echo "🔧 Crypto Prediction Configuration:"
+        echo "Trigger: ${{ github.event_name }}"
         echo "AI_PROVIDER: $AI_PROVIDER"
         echo "OPENAI_API_KEY: $(if [ -n "$OPENAI_API_KEY" ]; then echo "Set (${#OPENAI_API_KEY} chars)"; else echo "NOT SET"; fi)"
         echo "GEMINI_API_KEY: $(if [ -n "$GEMINI_API_KEY" ]; then echo "Set (${#GEMINI_API_KEY} chars)"; else echo "NOT SET"; fi)"
         echo "AUTO_POST: $AUTO_POST"
         echo ""
         
-        if [ "${{ inputs.dry_run }}" = "true" ]; then
+        if [ "${{ github.event_name }}" = "schedule" ]; then
+          echo "⏰ Running SCHEDULED crypto prediction - will post to Twitter"
+        elif [ "${{ inputs.dry_run }}" = "true" ]; then
           echo "🧪 Running in DRY RUN mode - no actual posting"
           export AUTO_POST=false
         else
