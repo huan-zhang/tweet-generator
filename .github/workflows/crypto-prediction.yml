@@ -1,0 +1,97 @@
+name: Crypto Prediction Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry mode (no actual posting)'
+        required: false
+        default: 'false'
+        type: boolean
+      ai_provider:
+        description: 'AI provider to use'
+        required: false
+        default: 'gemini'
+        type: choice
+        options:
+          - gemini
+          - openai
+
+jobs:
+  crypto-prediction:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create directories
+      run: |
+        mkdir -p generated_images
+        mkdir -p logs
+        
+    - name: Generate crypto prediction
+      env:
+        # AI Provider selection
+        AI_PROVIDER: ${{ inputs.ai_provider }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        
+        # Twitter API credentials
+        TWITTER_CLIENT_ID: ${{ secrets.TWITTER_CLIENT_ID }}
+        TWITTER_CLIENT_SECRET: ${{ secrets.TWITTER_CLIENT_SECRET }}
+        TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+        TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+        TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+        TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        
+        # Set posting mode based on input
+        AUTO_POST: ${{ inputs.dry_run == 'false' }}
+      run: |
+        echo "🔧 Crypto Prediction Configuration:"
+        echo "AI_PROVIDER: $AI_PROVIDER"
+        echo "OPENAI_API_KEY: $(if [ -n "$OPENAI_API_KEY" ]; then echo "Set (${#OPENAI_API_KEY} chars)"; else echo "NOT SET"; fi)"
+        echo "GEMINI_API_KEY: $(if [ -n "$GEMINI_API_KEY" ]; then echo "Set (${#GEMINI_API_KEY} chars)"; else echo "NOT SET"; fi)"
+        echo "AUTO_POST: $AUTO_POST"
+        echo ""
+        
+        if [ "${{ inputs.dry_run }}" = "true" ]; then
+          echo "🧪 Running in DRY RUN mode - no actual posting"
+          export AUTO_POST=false
+        else
+          echo "🚀 Running in LIVE mode - will post to Twitter"
+          export AUTO_POST=true
+        fi
+        
+        echo "📈 Generating crypto price prediction..."
+        python crypto_main.py
+        echo "✅ Crypto prediction generation completed!"
+        
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: crypto-prediction-${{ github.run_number }}
+        path: |
+          generated_images/
+          *.log
+        retention-days: 7
