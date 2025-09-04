@@ -101,13 +101,15 @@ class TwitterPoster:
             logger.error(f"Twitter authentication failed: {str(e)}")
             raise
     
-    def post_tweet(self, text: str, image_path: Optional[str] = None) -> str:
-        """Post a tweet with optional image."""
+    def post_tweet(self, text: str, image_path: Optional[str] = None, reply_to_tweet_id: Optional[str] = None) -> str:
+        """Post a tweet with optional image and optional reply to another tweet."""
         if not self.config.auto_post:
             logger.info("Auto-post disabled. Would have posted:")
             logger.info(f"Text: {text}")
             if image_path:
                 logger.info(f"Image: {image_path}")
+            if reply_to_tweet_id:
+                logger.info(f"Reply to: {reply_to_tweet_id}")
             return "dry_run_tweet_id"
         
         try:
@@ -126,6 +128,9 @@ class TwitterPoster:
             tweet_params = {"text": text}
             if media_id:
                 tweet_params["media_ids"] = [media_id]
+            if reply_to_tweet_id:
+                tweet_params["in_reply_to_tweet_id"] = reply_to_tweet_id
+                logger.info(f"Posting as reply to tweet: {reply_to_tweet_id}")
             
             response = self.client.create_tweet(**tweet_params)
             tweet_id = response.data['id']
